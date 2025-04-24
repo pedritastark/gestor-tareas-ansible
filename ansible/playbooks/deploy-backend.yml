@@ -1,0 +1,23 @@
+---
+- name: Desplegar backend con Node.js
+  hosts: backend
+  become: true
+  tasks:
+    - name: Instalar Node.js y npm
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - nodejs
+        - npm
+
+    - name: Clonar el backend desde GitHub
+      git:
+        repo: 'https://github.com/tu_usuario/tu_repo_backend.git'
+        dest: /var/www/backend
+        version: main
+
+    - name: Instalar dependencias con npm
+      command: npm install
+      args:
+        chdir: /var/www/backend

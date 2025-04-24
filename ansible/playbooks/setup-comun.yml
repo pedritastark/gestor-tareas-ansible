@@ -1,0 +1,19 @@
+---
+- name: Setup común para todos los nodos
+  hosts: all
+  become: true
+  tasks:
+    - name: Actualizar apt
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Instalar curl
+      apt:
+        name: curl
+        state: present
+
+    - name: Instalar git
+      apt:
+        name: git
+        state: present

@@ -1,0 +1,28 @@
+---
+- name: Desplegar frontend (React)
+  hosts: frontend
+  become: true
+  tasks:
+    - name: Instalar Node.js y npm
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - nodejs
+        - npm
+
+    - name: Clonar el frontend desde GitHub
+      git:
+        repo: 'https://github.com/tu_usuario/tu_repo_frontend.git'
+        dest: /var/www/frontend
+        version: main
+
+    - name: Instalar dependencias
+      command: npm install
+      args:
+        chdir: /var/www/frontend
+
+    - name: Crear versión de producción
+      command: npm run build
+      args:
+        chdir: /var/www/frontend

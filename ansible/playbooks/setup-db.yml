@@ -1,0 +1,15 @@
+---
+- name: Configurar MongoDB
+  hosts: db
+  become: true
+  tasks:
+    - name: Instalar MongoDB
+      apt:
+        name: mongodb
+        state: present
+
+    - name: Asegurar que MongoDB esté corriendo
+      service:
+        name: mongodb
+        state: started
+        enabled: yes
