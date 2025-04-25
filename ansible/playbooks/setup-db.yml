@@ -2,6 +2,7 @@
 - name: Configurar MongoDB 6.0
   hosts: db
   become: true
+
   tasks:
     - name: Importar clave pública de Mongo
       apt_key:
@@ -10,7 +11,7 @@
 
     - name: Añadir repo MongoDB 6.0
       apt_repository:
-        repo: "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}\/mongodb-org/6.0 multiverse"
+        repo: "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/6.0 multiverse"
         state: present
 
     - name: Instalar MongoDB
@@ -25,3 +26,13 @@
         state: started
         enabled: yes
 
+    - name: Permitir conexiones externas en mongod.conf
+      replace:
+        path: /etc/mongod.conf
+        regexp: '^  *bindIp:.*$'
+        replace: '  bindIp: 0.0.0.0'
+
+    - name: Reiniciar MongoDB para aplicar bindIp
+      service:
+        name: mongod
+        state: restarted
