@@ -4,40 +4,40 @@
   become: true
 
   vars:
-    app_dir: /opt/gestor        # ajusta si usas otra ruta
+    app_dir: /opt/gestor
     repo_url: https://github.com/pedritastark/gestor-tareas-ansible.git
-    branch: master              # o main si tu rama principal se llama así
+    branch: master
 
   tasks:
-    # ─────────────────────── Dependencias básicas ──────────────────────────
-    - name: Instalar curl y actualizar cache
+    # ─────────────────────────────── Actualizar cache ──────────────────────────────
+    - name: Actualizar caché de apt
       apt:
-        name: curl
-        state: present
         update_cache: yes
 
-    - name: Agregar repo NodeSource 18.x
-      shell: |
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+    # ────────────────────────── Agregar NodeSource y actualizar ───────────────────────
+    - name: Añadir repo NodeSource 18.x
+      shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
       args:
         executable: /bin/bash
 
-    - name: Instalar Node.js y npm
+    - name: Actualizar caché tras NodeSource
       apt:
-        name:
-          - nodejs
-          - npm
-        state: present
         update_cache: yes
 
+    # ──────────────────────────────── Instalar Node.js ────────────────────────────────
+    - name: Instalar Node.js (incluye npm)
+      apt:
+        name: nodejs
+        state: present
+
+    # ───────────────────────────── Instalación de Nginx ─────────────────────────────
     - name: Instalar Nginx
       apt:
         name: nginx
         state: present
-        update_cache: no
 
-    # ─────────────────────────────── Clon superficial ───────────────────────────────
-    - name: Clonar repo (solo última versión)
+    # ───────────────────────────── Clonar repo (shallow) ─────────────────────────────
+    - name: Clonar repo (último commit)
       git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
@@ -45,7 +45,7 @@
         depth: 1
         single_branch: yes
 
-    # ─────────────────────────── Instalación y build ───────────────────────────────
+    # ────────────────────────── Instalar deps y build Vite ───────────────────────────
     - name: Instalar dependencias frontend
       npm:
         path: "{{ app_dir }}/frontend"
@@ -56,13 +56,13 @@
       args:
         chdir: "{{ app_dir }}/frontend"
 
-    # ─────────────────────────── Despliegue en Nginx ───────────────────────────────
-    - name: Limpiar webroot actual
+    # ─────────────────────────── Desplegar en Nginx ────────────────────────────────
+    - name: Limpiar webroot
       file:
         path: /var/www/html
         state: absent
 
-    - name: Copiar dist/ a /var/www/html
+    - name: Copiar dist a /var/www/html
       copy:
         src: "{{ app_dir }}/frontend/dist/"
         dest: /var/www/html/
