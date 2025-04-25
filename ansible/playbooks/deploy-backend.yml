@@ -1,5 +1,4 @@
 ---
----
 - name: Desplegar backend
   hosts: backend
   become: true
