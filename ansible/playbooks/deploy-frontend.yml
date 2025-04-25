@@ -62,12 +62,12 @@
         state: absent
 
     - name: Crear directorio webroot
-      file:
-	path: /var/www/html
-	state: directory
-	owner: www-data
-	group: www-data
-	mode: '0755'
+        file:
+        path: /var/www/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
 
     - name: Copiar dist/ al webroot (remote)
       copy:
