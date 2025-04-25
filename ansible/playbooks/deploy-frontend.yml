@@ -81,7 +81,7 @@
       copy:
         src: "{{ app_dir }}/frontend/dist/"
         dest: /var/www/html/
-	remote_src: yes
+        remote_src: yes
         owner: www-data
         group: www-data
         mode: '0755'
