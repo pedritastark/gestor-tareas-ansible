@@ -9,8 +9,7 @@
     # ──────────────────────────────────────────────────────────────────────────
     - name: Añadir repositorio NodeSource 18 LTS
       shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      args:
-        warn: false
+      warn: false
 
     - name: Instalar Node.js
       apt:
