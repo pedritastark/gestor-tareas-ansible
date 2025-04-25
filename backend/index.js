@@ -34,8 +34,13 @@ app.use(express.json());
 
 // Listar todas
 app.get('/api/tasks', async (_req, res) => {
-  const tasks = await Task.find().lean();
-  res.json(tasks);
+  const docs = await Task.find().lean();
+  const tasks = docs.map(({ _id, title, done }) => ({
+    id:    _id.toString(),
+    title,
+    done,
+  }));
+  res.json(tasks)
 });
 
 // Crear
