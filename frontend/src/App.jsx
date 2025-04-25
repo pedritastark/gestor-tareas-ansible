@@ -1,35 +1,53 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [tasks, setTasks] = useState([]);
+  const [title, setTitle] = useState('');
+
+  /* GET inicial */
+  useEffect(() => {
+    fetch('/api/tasks')
+      .then(r => r.json())
+      .then(setTasks)
+      .catch(console.error);
+  }, []);
+
+  /* POST para agregar */
+  const addTask = async () => {
+    if (!title.trim()) return;
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, done: false })
+    });
+    const newTask = await res.json();
+    setTasks([...tasks, newTask]);
+    setTitle('');
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <main style={{ maxWidth: 600, margin: '3rem auto', fontFamily: 'Arial' }}>
+      <h1>Gestor de Tareas</h1>
 
-export default App
+      <div style={{ marginBottom: '1rem' }}>
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Nueva tarea"
+          style={{ padding: 8, width: '70%' }}
+        />
+        <button onClick={addTask} style={{ padding: 8, marginLeft: 8 }}>
+          Añadir
+        </button>
+      </div>
+
+      <ul>
+        {tasks.map(t => (
+          <li key={t.id}>
+            {t.title} {t.done ? '✅' : ''}
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
