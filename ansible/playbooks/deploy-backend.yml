@@ -1,23 +1,44 @@
 ---
-- name: Desplegar backend con Node.js
+- name: Desplegar backend
   hosts: backend
   become: true
+  vars:
+    app_dir: /var/www/backend
   tasks:
-    - name: Instalar Node.js y npm
-      apt:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - nodejs
-        - npm
+    - name: Añadir repo NodeSource 18
+      shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      args:
+        warn: false
 
-    - name: Clonar el backend desde GitHub
+    - name: Instalar Node y npm
+      apt:
+        name: nodejs
+        state: present
+        update_cache: yes
+
+    - name: Instalar PM2 global
+      npm:
+        name: pm2
+        global: yes
+
+    - name: Clonar backend
       git:
-        repo: 'https://github.com/tu_usuario/tu_repo_backend.git'
-        dest: /var/www/backend
+        repo: https://github.com/tu_usuario/tu_repo_backend.git
+        dest: "{{ app_dir }}"
         version: main
 
-    - name: Instalar dependencias con npm
-      command: npm install
+    - name: Instalar dependencias backend
+      npm:
+        path: "{{ app_dir }}"
+        state: present
+
+    - name: Arrancar API con PM2
+      shell: pm2 start index.js --name api --env production
       args:
-        chdir: /var/www/backend
+        chdir: "{{ app_dir }}"
+        creates: /root/.pm2
+
+    - name: Hacer PM2 autostart
+      shell: pm2 startup systemd -u ubuntu --hp /home/ubuntu && pm2 save
+      args:
+        creates: /etc/systemd/system/pm2-ubuntu.service

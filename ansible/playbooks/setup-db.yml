@@ -1,15 +1,27 @@
 ---
-- name: Configurar MongoDB
+- name: Configurar MongoDB 6.0
   hosts: db
   become: true
   tasks:
-    - name: Instalar MongoDB
-      apt:
-        name: mongodb
+    - name: Importar clave pública de Mongo
+      apt_key:
+        url: https://pgp.mongodb.com/server-6.0.asc
         state: present
 
-    - name: Asegurar que MongoDB esté corriendo
+    - name: Añadir repo MongoDB 6.0
+      apt_repository:
+        repo: "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}\/mongodb-org/6.0 multiverse"
+        state: present
+
+    - name: Instalar MongoDB
+      apt:
+        name: mongodb-org
+        state: present
+        update_cache: yes
+
+    - name: Iniciar y habilitar servicio
       service:
-        name: mongodb
+        name: mongod
         state: started
         enabled: yes
+
