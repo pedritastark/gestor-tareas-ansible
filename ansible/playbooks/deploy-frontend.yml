@@ -62,7 +62,7 @@
         state: absent
 
     - name: Crear directorio webroot
-        file:
+      file:
         path: /var/www/html
         state: directory
         owner: www-data
