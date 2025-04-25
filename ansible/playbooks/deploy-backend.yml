@@ -2,45 +2,55 @@
 - name: Desplegar backend
   hosts: backend
   become: true
+
   vars:
-    app_dir: /var/www/backend          # carpeta donde clonamos todo el repo
+    app_dir: /var/www/backend                 # Directorio donde clonamos el repo
     repo_url: https://github.com/pedritastark/gestor-tareas-ansible.git
+
   tasks:
-    # ──────────────────────────────────────────────────────────────────────────
+
+    # ────────────────────────────────── Node.js 18 ────────────────────────────
     - name: Añadir repositorio NodeSource 18 LTS
-      shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      warn: false
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      args:
+        warn: false
 
     - name: Instalar Node.js
       apt:
         name: nodejs
         state: present
         update_cache: yes
-    # ──────────────────────────────────────────────────────────────────────────
-    - name: Instalar PM2 de manera global
+
+    # ─────────────────────────────────── PM2 global ───────────────────────────
+    - name: Instalar PM2 globalmente
       npm:
         name: pm2
         global: yes
-    # ──────────────────────────────────────────────────────────────────────────
-    - name: Clonar el repositorio (sólo la rama principal, último commit)
+
+    # ─────────────────────────────── Clonado del repositorio ──────────────────
+    - name: Clonar el repositorio (rama principal, último commit)
       git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
-        version: master          # o main, según tu rama
+        version: master          # usa "main" si tu rama se llama main
         depth: 1
         single_branch: yes
-    # ──────────────────────────────────────────────────────────────────────────
+
+    # ───────────────────────────── Dependencias del backend ───────────────────
     - name: Instalar dependencias del backend
       npm:
         path: "{{ app_dir }}/backend"
         state: present
-    # ──────────────────────────────────────────────────────────────────────────
-    - name: Iniciar la API con PM2 (usa script "start")
+
+    # ────────────────────────────── Arrancar API con PM2 ──────────────────────
+    - name: Iniciar la API con PM2 (script "start")
       shell: pm2 start npm --name api -- start
       args:
         chdir: "{{ app_dir }}/backend"
-    # ──────────────────────────────────────────────────────────────────────────
-    - name: Configurar PM2 para autoiniciarse con el sistema
+
+    # ─────────────────────────────── PM2 autostart ────────────────────────────
+    - name: Configurar PM2 para autoiniciarse tras reinicio
       shell: pm2 startup systemd -u ubuntu --hp /home/ubuntu && pm2 save
       args:
         creates: /etc/systemd/system/pm2-ubuntu.service
