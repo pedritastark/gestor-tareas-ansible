@@ -45,8 +45,12 @@ app.get('/api/tasks', async (_req, res) => {
 
 // Crear
 app.post('/api/tasks', async (req, res) => {
-  const t = await Task.create({ title: req.body.title });
-  res.status(201).json(t);
+  const doc = await Task.create({ title: req.body.title });
+  res.status(201).json({
+    id:    doc._id.toString(),
+    title: doc.title,
+    done:  doc.done
+  });
 });
 
 // Toggle done
@@ -55,7 +59,11 @@ app.put('/api/tasks/:id', async (req, res) => {
   if (!t) return res.status(404).end();
   t.done = !t.done;
   await t.save();
-  res.json(t);
+  res.json({
+    id:    t._id.toString(),
+    title: t.title,
+    done:  t.done
+  });
 });
 
 // Eliminar
