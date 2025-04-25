@@ -2,42 +2,57 @@
 - name: Desplegar frontend (React + Nginx + proxy)
   hosts: frontend
   become: true
-
   vars:
     app_dir: /opt/gestor
     repo_url: https://github.com/pedritastark/gestor-tareas-ansible.git
     branch: master
+    node_version: 18.20.2
+    node_dist: node-v{{ node_version }}-linux-x64
+    node_url: https://nodejs.org/dist/v{{ node_version }}/{{ node_dist }}.tar.xz
 
   tasks:
-    # ─────────────────────────────── Actualizar cache ──────────────────────────────
+    # ───────────────────────── Apt / utilitarios ─────────────────────────
     - name: Actualizar caché de apt
       apt:
         update_cache: yes
 
-    # ────────────────────────── Agregar NodeSource y actualizar ───────────────────────
-    - name: Añadir repo NodeSource 18.x
-      shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      args:
-        executable: /bin/bash
-
-    - name: Actualizar caché tras NodeSource
+    - name: Instalar curl y xz-utils
       apt:
-        update_cache: yes
-
-    # ──────────────────────────────── Instalar Node.js ────────────────────────────────
-    - name: Instalar Node.js (incluye npm)
-      apt:
-        name: nodejs
+        name:
+          - curl
+          - xz-utils
         state: present
 
-    # ───────────────────────────── Instalación de Nginx ─────────────────────────────
+    # ─────────────────────────── Node.js binario ──────────────────────────
+    - name: Descargar tarball de Node.js {{ node_version }}
+      get_url:
+        url: "{{ node_url }}"
+        dest: /tmp/node.tar.xz
+        mode: '0644'
+
+    - name: Extraer Node.js
+      unarchive:
+        src: /tmp/node.tar.xz
+        dest: /usr/local
+        remote_src: yes
+
+    - name: Enlazar node y npm en /usr/local/bin
+      file:
+        src: "/usr/local/{{ node_dist }}/bin/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        state: link
+      loop:
+        - node
+        - npm
+
+    # ────────────────────────── Instalar Nginx ────────────────────────────
     - name: Instalar Nginx
       apt:
         name: nginx
         state: present
 
-    # ───────────────────────────── Clonar repo (shallow) ─────────────────────────────
-    - name: Clonar repo (último commit)
+    # ───────────────────────────── Clonar repo ─────────────────────────────
+    - name: Clonar repositorio (rama {{ branch }}, depth=1)
       git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
@@ -45,7 +60,7 @@
         depth: 1
         single_branch: yes
 
-    # ────────────────────────── Instalar deps y build Vite ───────────────────────────
+    # ───────────────────── Instalación y build del frontend ──────────────────
     - name: Instalar dependencias frontend
       npm:
         path: "{{ app_dir }}/frontend"
@@ -56,22 +71,29 @@
       args:
         chdir: "{{ app_dir }}/frontend"
 
-    # ─────────────────────────── Desplegar en Nginx ────────────────────────────────
-    - name: Limpiar webroot
+    # ───────────────────────── Desplegar archivos ───────────────────────────
+    - name: Limpiar webroot actual
       file:
         path: /var/www/html
         state: absent
 
-    - name: Copiar dist a /var/www/html
+    - name: Copiar dist/ al webroot
       copy:
         src: "{{ app_dir }}/frontend/dist/"
         dest: /var/www/html/
         owner: www-data
         group: www-data
-        mode: "0755"
+        mode: '0755'
 
-    - name: Reiniciar Nginx
+    # ─────────────────────── Configurar Nginx y proxy ───────────────────────
+    - name: Desplegar configuración de Nginx
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+      notify: Reload Nginx
+
+  handlers:
+    - name: Reload Nginx
       service:
         name: nginx
-        state: restarted
-        enabled: yes
+        state: reloaded
