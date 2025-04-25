@@ -1,61 +1,63 @@
 ---
-- name: Deploy backend (Node + PM2)
+- name: Desplegar backend (Node + PM2 + MongoDB)
   hosts: backend
   become: true
 
   vars:
     app_dir: /var/www/backend
     repo_url: "https://github.com/pedritastark/gestor-tareas-ansible.git"
-    branch: "master"          # usa "main" si tu rama se llama main
 
   tasks:
-    # --------------------------------------------------------------------
-    - name: Ensure curl is present
+    - name: Actualizar caché de apt
+      apt:
+        update_cache: yes
+
+    - name: Instalar curl
       apt:
         name: curl
         state: present
-        update_cache: yes
 
-    - name: Add NodeSource 18.x repository
-      shell: |
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      args:
-        executable: /bin/bash
+    - name: Añadir NodeSource 18.x
+      shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      args: { executable: /bin/bash }
 
-    - name: Install Node.js
+    - name: Instalar Node.js
       apt:
         name: nodejs
         state: present
-        update_cache: yes
-    # --------------------------------------------------------------------
-    - name: Install PM2 globally
+
+    - name: Instalar PM2 globalmente
       npm:
         name: pm2
         global: yes
-    # --------------------------------------------------------------------
-    - name: Clone repository (shallow)
+
+    - name: Clonar repositorio (shallow)
       git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
-        version: "{{ branch }}"
+        version: master
         depth: 1
         single_branch: yes
-    # --------------------------------------------------------------------
-    - name: Install backend dependencies
+
+    - name: Instalar dependencias del backend
       npm:
         path: "{{ app_dir }}/backend"
         state: present
-    # --------------------------------------------------------------------
-    - name: Start API with PM2 (npm start)
-      shell: |
-        pm2 start npm --name api -- start
+
+    - name: Desplegar archivo .env
+      template:
+        src: env.j2
+        dest: "{{ app_dir }}/backend/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Iniciar la API con PM2 (npm start)
+      shell: pm2 start npm --name api -- start
       args:
         chdir: "{{ app_dir }}/backend"
 
-    - name: Enable PM2 on boot
-      shell: |
-        pm2 startup systemd -u ubuntu --hp /home/ubuntu
-        pm2 save
+    - name: Habilitar PM2 en el arranque
+      shell: pm2 startup systemd -u ubuntu --hp /home/ubuntu && pm2 save
       args:
-        executable: /bin/bash
         creates: /etc/systemd/system/pm2-ubuntu.service

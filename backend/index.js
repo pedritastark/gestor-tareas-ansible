@@ -1,45 +1,56 @@
 // backend/index.js
-const express = require('express');
-const cors    = require('cors');
+require('dotenv').config();
+const express  = require('express');
+const cors     = require('cors');
+const mongoose = require('mongoose');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+const URI  = process.env.MONGO_URI;
+
+if (!URI) {
+  console.error('❌ MONGO_URI no está definido en .env');
+  process.exit(1);
+}
+
+mongoose.connect(URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ MongoDB conectado'))
+  .catch(err => {
+    console.error('❌ Error conectando a MongoDB:', err);
+    process.exit(1);
+  });
+
+const taskSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  done:  { type: Boolean, default: false }
+});
+const Task = mongoose.model('Task', taskSchema);
 
 app.use(cors());
 app.use(express.json());
 
-// “Base de datos” en memoria
-let tasks = [
-  { id: 1, title: 'Aprender Ansible', done: false },
-  { id: 2, title: 'Configurar EC2',    done: true  }
-];
+// ─── CRUD usando MongoDB ────────────────────────────────────
 
-// ─────────── Rutas CRUD ──────────────────────────────────────────
-
-// Listar
-app.get('/api/tasks', (_req, res) => res.json(tasks));
-
-// Crear
-app.post('/api/tasks', (req, res) => {
-  const task = { id: Date.now(), ...req.body, done: false };
-  tasks.push(task);
-  res.status(201).json(task);
+app.get('/api/tasks', async (_req, res) => {
+  const tasks = await Task.find().lean();
+  res.json(tasks);
 });
 
-// Marcar / des-marcar
-app.put('/api/tasks/:id', (req, res) => {
-  const { id } = req.params;
-  tasks = tasks.map(t =>
-    t.id === Number(id) ? { ...t, done: !t.done } : t
-  );
-  const updated = tasks.find(t => t.id === Number(id));
-  res.json(updated);
+app.post('/api/tasks', async (req, res) => {
+  const t = await Task.create({ title: req.body.title });
+  res.status(201).json(t);
 });
 
-// Eliminar
-app.delete('/api/tasks/:id', (req, res) => {
-  const { id } = req.params;
-  tasks = tasks.filter(t => t.id !== Number(id));
+app.put('/api/tasks/:id', async (req, res) => {
+  const t = await Task.findById(req.params.id);
+  if (!t) return res.status(404).end();
+  t.done = !t.done;
+  await t.save();
+  res.json(t);
+});
+
+app.delete('/api/tasks/:id', async (req, res) => {
+  await Task.findByIdAndDelete(req.params.id);
   res.status(204).end();
 });
 
