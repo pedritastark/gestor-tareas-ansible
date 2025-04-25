@@ -1,28 +1,77 @@
 ---
-- name: Desplegar frontend (React)
+- name: Desplegar frontend (React + Nginx + proxy)
   hosts: frontend
   become: true
+
+  vars:
+    app_dir: /opt/gestor        # ajusta si usas otra ruta
+    repo_url: https://github.com/pedritastark/gestor-tareas-ansible.git
+    branch: master              # o main si tu rama principal se llama así
+
   tasks:
+    # ─────────────────────── Dependencias básicas ──────────────────────────
+    - name: Instalar curl y actualizar cache
+      apt:
+        name: curl
+        state: present
+        update_cache: yes
+
+    - name: Agregar repo NodeSource 18.x
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      args:
+        executable: /bin/bash
+
     - name: Instalar Node.js y npm
       apt:
-        name: "{{ item }}"
+        name:
+          - nodejs
+          - npm
         state: present
-      loop:
-        - nodejs
-        - npm
+        update_cache: yes
 
-    - name: Clonar el frontend desde GitHub
+    - name: Instalar Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: no
+
+    # ─────────────────────────────── Clon superficial ───────────────────────────────
+    - name: Clonar repo (solo última versión)
       git:
-        repo: 'https://github.com/tu_usuario/tu_repo_frontend.git'
-        dest: /var/www/frontend
-        version: main
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ branch }}"
+        depth: 1
+        single_branch: yes
 
-    - name: Instalar dependencias
-      command: npm install
-      args:
-        chdir: /var/www/frontend
+    # ─────────────────────────── Instalación y build ───────────────────────────────
+    - name: Instalar dependencias frontend
+      npm:
+        path: "{{ app_dir }}/frontend"
+        state: present
 
-    - name: Crear versión de producción
+    - name: Compilar frontend (Vite → dist/)
       command: npm run build
       args:
-        chdir: /var/www/frontend
+        chdir: "{{ app_dir }}/frontend"
+
+    # ─────────────────────────── Despliegue en Nginx ───────────────────────────────
+    - name: Limpiar webroot actual
+      file:
+        path: /var/www/html
+        state: absent
+
+    - name: Copiar dist/ a /var/www/html
+      copy:
+        src: "{{ app_dir }}/frontend/dist/"
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: "0755"
+
+    - name: Reiniciar Nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
