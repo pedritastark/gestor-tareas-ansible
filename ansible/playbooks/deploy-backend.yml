@@ -1,11 +1,12 @@
 ---
-- name: Desplegar backend (Node + PM2 + MongoDB)
+- name: Desplegar backend (Node.js + PM2 + MongoDB)
   hosts: backend
   become: true
 
   vars:
     app_dir: /var/www/backend
     repo_url: "https://github.com/pedritastark/gestor-tareas-ansible.git"
+    branch: master
 
   tasks:
     - name: Actualizar caché de apt
@@ -17,9 +18,10 @@
         name: curl
         state: present
 
-    - name: Añadir NodeSource 18.x
+    - name: Añadir repositorio NodeSource 18.x
       shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      args: { executable: /bin/bash }
+      args:
+        executable: /bin/bash
 
     - name: Instalar Node.js
       apt:
@@ -31,11 +33,11 @@
         name: pm2
         global: yes
 
-    - name: Clonar repositorio (shallow)
+    - name: Clonar repositorio (rama {{ branch }}, depth=1)
       git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
-        version: master
+        version: "{{ branch }}"
         depth: 1
         single_branch: yes
 
@@ -52,8 +54,8 @@
         group: ubuntu
         mode: '0600'
 
-    - name: Iniciar la API con PM2 (npm start)
-      shell: pm2 start npm --name api -- start
+    - name: Reiniciar o iniciar la API con PM2
+      shell: pm2 restart api || pm2 start npm --name api -- start
       args:
         chdir: "{{ app_dir }}/backend"
 
